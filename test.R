@@ -1,7 +1,20 @@
-library(cli)
+library(googlesheets4)
 
-print("hey")
+# edp <- gs4_endpoints()
 
-invisible(scan("stdin", character(), nlines = 1, quiet = TRUE))
+endpoint <- "sheets.spreadsheets.batchUpdate"
 
-print("bye")
+title_req <- list(
+  updateChartSpec = list(spec = list(title = "TEST TEST"))
+)
+
+req <- request_generate(
+  endpoint,
+  params = list(
+    spreadsheetId = "1prsIe09ABeURDynrTEEbgXnWM7ksdRYY3iN_CdKm3c4",
+    requests = title_req
+  )
+)
+
+resp_raw <- request_make(req)
+gargle::response_process(resp_raw)
