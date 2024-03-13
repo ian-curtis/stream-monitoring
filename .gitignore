@@ -2,3 +2,6 @@
 .Rhistory
 .RData
 .Ruserdata
+generate_key.R
+.secrets
+chart_ops.R
