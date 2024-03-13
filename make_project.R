@@ -21,12 +21,13 @@ option_list = list(
   make_option(c("--home"), type = "character", default = NULL, 
               help = "drive folder name you want project folder to live in; defaults to 'My Drive'", 
               metavar = "character"),
-  make_option(c("-w", "--waterbody"), type = "character", default = NULL,
+  make_option(c("-w", "--waterbody"), type = "character", default = "Waterbody Name",
               help = "the water body from which the data was collected", metavar = "character"),
   make_option(c("-n", "--nsites"), type = "integer", default = 1, 
               help="number of sites you are taking data from (default 1)", metavar="character")
 )
 
+# make an R object for the values given in the flags on the command line
 opt_parser = OptionParser(option_list=option_list)
 opt = parse_args(opt_parser)
 
@@ -57,7 +58,7 @@ cli_alert_info("Connecting to Google Account.")
 # connect to Google account (must be done once interactively, then it's cached)
 # use `drive_user()` to force (re)authorization
 drive_user()
-gs4_auth(toke = drive_token())
+gs4_auth(token = drive_token())
 
 cli_alert_success("Found your Google account!")
 
@@ -160,12 +161,12 @@ range_write(main_copy,
 
 cli_alert_info("Setting up Macro import")
 
-import_ecoli <- paste0("=QUERY(IMPORTRANGE(\"", form_r_link,
+import_macro <- paste0("=QUERY(IMPORTRANGE(\"", form_r_link,
                        "\", \"'Data'!Q2:T\"), ",
                        "\"select * where Col1 is not null order by Col2\")")
 
 range_write(main_copy,
-            data.frame(x = gs4_formula(import_ecoli)),
+            data.frame(x = gs4_formula(import_macro)),
             sheet = "All Macro Data",
             range = "A2",
             col_names = FALSE)
@@ -174,12 +175,12 @@ range_write(main_copy,
 
 cli_alert_info("Setting up Stream Chemistry import")
 
-import_ecoli <- paste0("=QUERY(IMPORTRANGE(\"", form_r_link,
+import_chem <- paste0("=QUERY(IMPORTRANGE(\"", form_r_link,
                        "\", \"'Data'!D2:K\"), ",
                        "\"select * where Col1 is not null order by Col2\")")
 
 range_write(main_copy,
-            data.frame(x = gs4_formula(import_ecoli)),
+            data.frame(x = gs4_formula(import_chem)),
             sheet = "All Stream Chem Data",
             range = "A2",
             col_names = FALSE)
@@ -279,7 +280,7 @@ for (site in seq(opt$nsites)) {
   
   # site macro data
   range_write(site_copy,
-              data.frame(x = gs4_formula(paste0("IMPORTRANGE(\"", main_link, "\", \"'Sub Data'!D:J\")"))),
+              data.frame(x = gs4_formula(paste0("=IMPORTRANGE(\"", main_link, "\", \"'Sub Data'!D:J\")"))),
               sheet = "Data",
               range = "AB1",
               col_names = FALSE)
@@ -292,6 +293,4 @@ for (site in seq(opt$nsites)) {
 cli_alert_success("All site sheets created.")
 cli_alert_success("The new project has been created.")
 
-
-cli
 
