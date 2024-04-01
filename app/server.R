@@ -1,293 +1,47 @@
-library(shiny)
-library(googledrive)
-library(googlesheets4)
-library(dplyr)
-library(waiter)
-library(cli)
-
-# onStop(function() {
-#   drive_deauth()
-# })
-
-drive_auth_configure(path = "./secret/oauth_secret_water.json")
-
-form_template <- "https://docs.google.com/forms/d/1TUC63kNrlLhupNcBSbPoQX0tGdCLpx9rSfVX5mFBG1U/edit"
-main_template <- "https://docs.google.com/spreadsheets/d/1AmUUw_6sXgMzVGPQrE7ziaeig8p63pdkQSnVggxMfJE/edit"
-site_template <- "https://docs.google.com/spreadsheets/d/1k2wjsG1VgqpUxwC124WaWlGSqIlHIYkTzAUwVRh-Uf4/edit"
-
-hide_sheet <- function(ssid, sheet_id, op = c("hide", "show")) {
-  
-  op <- match.arg(op)
-  
-  hide_req <- list(
-    updateSheetProperties =
-      list(properties = list(sheetId = sheet_id,
-                             hidden = ifelse(op == "hide", "True", "False")),
-           fields = "hidden")
-  )
-  
-  req <- request_generate(
-    "sheets.spreadsheets.batchUpdate",
-    params = list(
-      spreadsheetId = ssid,
-      requests = hide_req
-    )
-  )
-  
-  # print(req)
-  
-  resp_raw <- request_make(req)
-  response <- gargle::response_process(resp_raw)
-  
-}
-
-find_chart_data <- function(ssid) {
-  
-  chart_data_req <- request_generate(
-    "sheets.spreadsheets.get",
-    params = list(
-      spreadsheetId = ssid,
-      fields = "sheets"
-    )
-  )
-  
-  chart_data_raw <- request_make(chart_data_req)
-  chart_data_resp <- gargle::response_process(chart_data_raw)
-  
-  # find the full chart data from the response from the API
-  
-  chart_data <- list()
-  idx <- 1
-  
-  for (sheet in chart_data_resp$sheets) {
-    
-    for (chart in sheet$charts) {
-      
-      info <- chart
-      chart_data[[idx]] <- info
-      idx <- idx + 1
-      
-    }
-    
-  }
-  
-  return(chart_data)
-  
-  
-}
-
-update_title <- function(ssid, chart_num, site_num) {
-  
-  chart_data <- find_chart_data(ssid)
-  
-  # pull out original spec and update the title
-  chart_spec <- chart_data[[chart_num]]$spec
-  og_title <- chart_spec$title
-  
-  new_title <- gsub("Site #", paste("Site", site_num), og_title)
-  chart_spec$title <- new_title
-  
-  # insert updated spec
-  chart_data[[chart_num]]$spec <- chart_spec
-  
-  # build request
-  title_req <- list(
-    updateChartSpec =
-      list(chartId = chart_data[[chart_num]]$chartId,
-           spec = chart_data[[chart_num]]$spec)
-  )
-  
-  req <- request_generate(
-    "sheets.spreadsheets.batchUpdate",
-    params = list(
-      spreadsheetId = ssid,
-      requests = title_req
-    )
-  )
-  
-  # print(req)
-  
-  resp_raw <- request_make(req)
-  response <- gargle::response_process(resp_raw)
-  
-}
-
-# Define UI ####
-ui <- fluidPage(
-  useWaiter(),
-  waiterShowOnLoad(),
-  
-  
-  
-  navbarPage(
-    "Stream Monitoring: New Project Creation",
-    tabPanel("Home",
-             mainPanel(
-               tags$p("Welcome to the interface used to create a new stream monitoring project!"),
-               p("Details about why this exists, who might want to use it, and what it does")
-             )
-    ),
-    
-    # Primary page for creating the project ####
-    tabPanel("Create the Project!",
-             mainPanel(
-               
-               ## Authenticate ####
-               tags$p("Hello! Before we begin, we need access to your Google account. This is necessary to create files and share the project with you. For information on how your data is used, see the PRIVACY POLICY."),
-               actionButton("auth", "Authenticate With Google"),
-               br(), br(),
-               
-               ## Explanation of process and Ready? Question ####
-               conditionalPanel(
-                 condition = "input.auth",
-                 htmlOutput("greeting"),
-                 br(),
-                 tags$p("If you've authenticated and you are ready to start the project creation process, activate the Ready! button below."),
-                 actionButton("ready", "Ready!"),
-                 br(), br()
-                 
-               ),
-               
-               ## Waterbody question ####
-               conditionalPanel(
-                 condition = "input.ready",
-                 textInput("wb", "What waterbody did you / will you measure data from?"),
-                 actionButton("wb_entered", "Next"),
-                 br(), br(),
-               ),
-               
-               
-               htmlOutput("confirm_wb"),
-               br(),
-               
-               ## Number of Sites question ####
-               conditionalPanel(
-                 condition = "input.wb_entered",
-                 selectInput("n_sites", label = "Number of Sites Recorded",
-                             choices = c(1, 2, 3, 4, 5, 6), selected = 1),
-                 actionButton("n_entered", "Next"),
-                 br(), br()
-               ),
-               
-               htmlOutput("confirm_sites"),
-               br(),
-               
-               ## Project location question ####
-               conditionalPanel(
-                 condition = "input.n_entered",
-                 textInput("proj_search", "Where would you like your project to live?"),
-                 actionButton("parent_dir_entered", "Next"),
-                 br(), br()
-               ),
-               
-               
-               htmlOutput("confirm_parent_dir"),
-               br(), br(),
-               
-               ## Communicate that the next part is mostly automated but there will be some manual work ####
-               
-               conditionalPanel(
-                 condition = "output.good_to_go==\"yes\"",
-                 p("Ok! From here on out, the process is mostly automated. There will be a few times where we'll stop for some manual actions and checks, but we'll be sure to let you know when we get there."),
-                 p("If you're ready (and you're sure the information you entered above is correct) hit the \"Ready\" Button!"),
-                 actionButton("start_project", "Ready!"),
-                 br(), br()
-               ),
-               
-               ## Request manual edit for connecting the sheet to the form ####
-               
-               conditionalPanel(
-                 condition = "output.edit_form==\"now\"",
-                 h2("Manual Edit Requested: Google Form"),
-                 htmlOutput("edit_form_msg"), br(),
-                 actionButton("form_edited", "Continue!"),
-                 br(), br()
-               ),
-               
-               ## If we detect that the connected sheet was NOT created ####
-               
-               conditionalPanel(
-                 condition = "output.redo_form==\"yes\"",
-                 p("Oops! It couldn't be verified that a Google Sheet was connected to the newly-created Google Form. Please verify you followed the instructions above. As a reminder, you will need to access the link provided and use the \"Link to Sheets\" button on the Form. Then, make sure you create a new sheet (do not change the default name). Once you've done this, select the \"Continue!\" button again.")
-               ),
-               
-               
-               ## If we detect that the connected sheet WAS created #### 
-               
-               conditionalPanel(
-                 condition = "output.redo_form==\"no\"",
-                 p("Great! We just verified that you successfully linked that Sheet to the Form. Ready to move on?"),
-                 actionButton("form_created", "Keep Going!"),
-                 br(), br()
-               ),
-               
-               
-               ## Request manual edit to approve linkage between primary sheet and raw data ####
-               conditionalPanel(
-                 condition = "output.connect_primary==\"ready\"",
-                 h2("Manual Edit Requested: Primary Datasheet"),
-                 htmlOutput("primary_link_msg"), br(),
-                 actionButton("primary_linked", "Continue!")
-               ),
-               
-               # MAYBE SOMETHING HERE TO CHECK THAT THE CONNECTION WAS DONE CORRECTLY
-               
-               ## Request manual edit to approve linkage between site sheet(s) and primary sheet ####
-               conditionalPanel(
-                 condition = "output.connect_site==\"ready\"",
-                 h2("Manual Edit Requested: Site Specific Sheets"),
-                 htmlOutput("site_link_msg"), br(),
-                 actionButton("site_linked", "Continue!")
-               ),
-               
-               # MAYBE SOMETHING HERE TO CHECK THAT THE SITE CONNECTIONS WERE DONE CORRECTLY
-               
-               # Wrap up the app with a concluding paragraph ####
-               conditionalPanel(
-                 condition = "output.proj_status==\"complete\"",
-                 p("Congrats! The creation process has been completed. You now have a fully functional stream monitoring project. At this point, enter your data into the Google Form. The spreadsheets will automatically update and populate with data. Necessary charts will appear in the site-specific sheets which you can then export as PNG images to share with the public. Have fun!!")
-               )
-               
-             )
-    ),
-    
-    
-    tabPanel("How Your Data Is Used",
-             p("Information on what data is stored and used and how/why.")
-    )
-    
-  )
-)
-
 # Define server logic ####
-server <- function(input, output) {
+server <- function(input, output, session) {
   
   waiter_hide()
+  rv <- reactiveValues(results = NULL)
   
   # record the name of the user and send a greeting ####
   user <- eventReactive(input$auth, {
+    drive_deauth()
     drive_auth(email = FALSE)
     gs4_auth(token = drive_token())
     drive_user()$displayName
   })
   
   output$greeting <- renderText({
+    
     HTML(paste0("Hey ",
                 "<span style=\"color: #099392\"><b>", user(), "</b></span>",
                 "! Welcome to the app. Now that you're logged in, we can move forward. You first will be asked a couple questions about your project which will help us determine how many files to create. Once these questions are complete, the majority of the process will happen automatically. However, there are a few manual steps. We'll pause a couple times and ask you to perform an action or two."))
   })
   
-  # record the waterbody data was recorded from and send a confirmation
-  waterbody <- eventReactive(input$wb_entered, {
-    as.character(input$wb)
+  # record the waterbody data was recorded from and send a confirmation ####
+  observeEvent(input$wb_entered, {
+    
+    rv$wb <- as.character(input$wb)
+    
+    if (any(str_detect(rv$wb, no_no)) | rv$wb == "") rv$wb_ready <- "no" else rv$wb_ready <- "yes"
+    
   })
+  
   output$confirm_wb <- renderText({
-    HTML(paste0("Alright! Looks like you have recorded / will record data from ", 
-                "<span style=\"color: #099392\"><b>", waterbody(), "</b></span>",
+    validate(
+      need(!any(str_detect(rv$wb, no_no)), message = "Please keep your input family friendly. Try again."),
+      need(rv$wb != "", message = "Please supply a waterbody name.")
+    )
+    HTML(paste0("Alright! Looks like you are recording data from ", 
+                "<span style=\"color: #099392\"><b>", rv$wb, "</b></span>",
                 "! If this is correct, please enter the number of sites you are measuring from."))
   })
   
-  # record the number of sites and send a confirmation
+  output$wb_ready <- renderText({rv$wb_ready})
+  outputOptions(output, "wb_ready", suspendWhenHidden = FALSE)
+
+  # record the number of sites and send a confirmation ####
   nsites <- eventReactive(input$n_entered, {
     as.integer(input$n_sites)
   })
@@ -298,9 +52,9 @@ server <- function(input, output) {
     ))
   })
   
-  # record the location of the project and try to find it
+  # record the location of the project and try to find it ####
   
-  rv <- reactiveValues(results = NULL)
+ 
   
   observeEvent(input$parent_dir_entered, {
     
@@ -371,9 +125,11 @@ server <- function(input, output) {
   ### Set Up Google Form ####
   observeEvent(input$start_project, {
     
+    removeUI(selector='#start_project', immediate=TRUE)
+    
     waiter <- waiter::Waiter$new(html = div(
       spin_loaders(10),
-      "Creating Google Form (for data input)..."))
+      "Creating a new folder and a Google Form (for data input)..."))
     waiter$show()
     on.exit(waiter$hide())
     
@@ -389,6 +145,7 @@ server <- function(input, output) {
     form_resp_link <- paste0(drive_link(form_copy), "#responses")
     
     rv$wb <- input$wb
+    rv$n_sites <- as.integer(input$n_sites)
     rv$proj_dir <- proj_dir
     rv$form_copy <- form_copy
     rv$form_link <- form_link
@@ -405,7 +162,7 @@ server <- function(input, output) {
       "You'll need to create a Sheets file connected to the Google form that was just created.",
       "Just go to the link below and click on the \"Link to Sheets\" button in your browser.",
       "You'll want to \"Create a New Sheet\" (and not use an existing sheet). Do not edit the default title.",
-      a(href = rv$form_resp_link, "Link to your Google Form"),
+      a(href = rv$form_resp_link, "Link to your Google Form (opens in new window)", target = "_blank"),
       "Have you created the new Sheet? If so, press the \"Continue\" button.",
       sep = "<br><br>"
     ))
@@ -429,6 +186,8 @@ server <- function(input, output) {
   ### Rename Responses Sheet and Set Up Primary Data Sheet ####
   
   observeEvent(input$form_created, {
+    
+    removeUI(selector='#form_created', immediate=TRUE)
     
     waiter <- waiter::Waiter$new(html = div(
       spin_loaders(10),
@@ -529,7 +288,7 @@ server <- function(input, output) {
       "A dialog box should appear. Use the \"Allow Access\" button to give Google permission to read from the other file.",
       "You should see the \"#REF!\" change to a \"#N/A\". This is expected and indicates that it worked.",
       "Here's that file:",
-      a(href = rv$main_link, "Link to the Primary Datasheet"),
+      a(href = rv$main_link, "Link to the Primary Datasheet (opens in new window)", target = "_blank"),
       "Have you approved the connection? If so, press the \"Continue\" button.",
       sep = "<br><br>"
     ))
@@ -551,11 +310,11 @@ server <- function(input, output) {
     
     site_sheets <- list()
     
-    for (site in seq(input$n_sites)) {
+    for (site in seq(rv$n_sites)) {
       
       waiter <- waiter::Waiter$new(html = div(
         spin_loaders(10),
-        paste0("Setting up Site Sheet ", site, " of ", input$n_sites, "...")))
+        paste0("Setting up Site Sheet ", site, " of ", rv$n_sites, "...")))
       waiter$show()
       
       site_copy <- drive_cp(site_template, name = paste0("04-", site, " Site ", site, " Sheet")) %>%
@@ -591,13 +350,17 @@ server <- function(input, output) {
                   range = "AB1",
                   col_names = FALSE)
       
-      # FRIDAY/SATURDAY: MAKE A LOOP TO UPDATE THE CHART TITLES IN EACH SITE SHEET
+      # for (chart_num in seq(1, 8)) {
+      #   
+      #   update_title(site_copy$id, chart_num, site)
+      #   
+      # }
       
-      for (chart_num in seq(1, 8)) {
-        
-        update_title(site_copy$id, chart_num, site)
-        
-      }
+      # for (chart_num in c(1, 2, 5, 6, 7, 8)) {
+      #   
+      #   update_title(site_copy$id, chart_num, site)
+      #   
+      # }
       
       
       waiter$hide()
@@ -616,15 +379,13 @@ server <- function(input, output) {
     
     site_links <- ""
     
-    for (i in length(site_sheets)) {
-      print(i)
+    for (i in seq(rv$n_sites)) {
+      
       link <- site_sheets[[i]]
-      print(link)
-      site_links <- paste0(a(href = link, paste("Link to Site", i, "Sheet")), "<br>")
-      print(site_links)
+      site_links <- paste0(site_links, a(href = link, paste("Link to Site", i, "Sheet (opens in new window)"), target = "_blank"), "<br>")
       
     }
-    gsub('.{4}$', '', site_links)
+    gsub("<br>$", "", site_links)
     site_links
     
   }
@@ -644,18 +405,26 @@ server <- function(input, output) {
   
   observeEvent(input$site_linked, {
     
+    waiter <- waiter::Waiter$new(html = div(
+      spin_loaders(10),
+      paste0("Finalizing site sheets...")))
+    waiter$show()
+
     ## Hide the "data" sheet in the spreadsheet ####
-    for (sheet in rv$site_sheets) {
+    for (url in rv$site_sheets) {
+      ssid <- as_dribble(url)
       
-      sheet_ids <- sheet_properties(sheet) %>% 
-        filter(index == 0) %>% 
+      sheet_ids <- sheet_properties(ssid) %>%
+        filter(index == 0) %>%
         select(id)
-      hide_sheet(sheet, sheet_ids[[1]][[1]], "hide")
-      
+  
+      hide_sheet(ssid$id, sheet_ids[[1]][[1]], "hide")
+
     }
     
     rv$proj_status <- "complete"
     
+    waiter$hide()
     
   })
   
@@ -664,4 +433,4 @@ server <- function(input, output) {
   
 }
 
-shinyApp(ui = ui, server = server)
+server

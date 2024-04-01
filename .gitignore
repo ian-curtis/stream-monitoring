@@ -2,7 +2,9 @@
 .Rhistory
 .RData
 .Ruserdata
-generate_key.R
-.secrets
-chart_ops.R
 app/secret/
+chart_ops.R
+test*.R
+credentials.json
+illegal_words.RData
+
