@@ -7,3 +7,4 @@ chart_ops.R
 test*.R
 credentials.json
 illegal_words.RData
+
