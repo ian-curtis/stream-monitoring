@@ -1,46 +1,26 @@
 library(googlesheets4)
 source("chart_ops.R")
 
-ssid <- "19j1tq8gGNSYKLDqL1b1sRhFpOuUT1wBNcIZnVpN74Sk"
+ssid <- "1H23wxbY95w_AgB47J2S8jrC6c1LFc3a6qyqCBhxqbTw"
 
-# chart_ids <- find_chart_ids(ssid)
-# chart_data <- find_chart_data(ssid)
+update_title <- function(ssid, chart_num, new_title) {
 
-
-
-# next: extract the title and update it based on the site #
-# then post it to the sheet
-# future: explore other customizations
-
-update_title <- function(ssid, chart_num, site_num, new_title) {
-  
-  chart_ids <- find_chart_ids(ssid)
   chart_data <- find_chart_data(ssid)
   
-  # pull out original spec
+  # pull out original spec and update the title
   chart_spec <- chart_data[[chart_num]]$spec
-  print(chart_spec$title)
-  
-  # # build new title
-  # title <- chart_spec$title
-  # new_title <- gsub("#", site_num, title)
-  # new_title <- gsub("Waterbody", wb, new_title)
-  
   chart_spec$title <- new_title
-  chart_spec$basicChart$domains[[1]]$domain$sourceRange$sources[[1]]$sheetId <- 0
-  chart_spec$basicChart$series[[1]]$series$sourceRange$sources[[1]]$sheetId <- 0
-  print(chart_spec$title)
   
   # insert updated spec
-  # chart_data[[chart_num]]$spec <- chart_spec
+  chart_data[[chart_num]]$spec <- chart_spec
   
-  
+  # build request
   title_req <- list(
     updateChartSpec =
-      list(chartId = chart_ids[chart_num],
-           spec = chart_spec)
+      list(chartId = chart_data[[chart_num]]$chartId,
+           spec = chart_data[[chart_num]]$spec)
   )
-
+  
   req <- request_generate(
     "sheets.spreadsheets.batchUpdate",
     params = list(
@@ -48,11 +28,20 @@ update_title <- function(ssid, chart_num, site_num, new_title) {
       requests = title_req
     )
   )
-
+  
   # print(req)
-
+  
   resp_raw <- request_make(req)
-  print(resp_raw)
   response <- gargle::response_process(resp_raw)
 
 }
+
+
+for (chart_num in seq(1, 8)) {
+  
+  update_title(ssid, chart_num, "3")
+  
+}
+
+update_title(ssid, 4, "3")
+
