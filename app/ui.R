@@ -25,7 +25,7 @@ ui <- fluidPage(
                
                ## Explanation of process and Ready? Question ####
                conditionalPanel(
-                 condition = "input.auth",
+                 condition = "output.auth_complete==\"yes\"",
                  htmlOutput("greeting"),
                  br(),
                  tags$p("If you've authenticated and you are ready to start the project creation process, activate the Ready! button below."),
@@ -63,19 +63,22 @@ ui <- fluidPage(
                ## Project location question ####
                conditionalPanel(
                  condition = "input.n_entered",
-                 textInput("proj_search", "Where would you like your project to live?"),
-                 actionButton("parent_dir_entered", "Next"),
+                 p("As of the current version of this application, your project will be built to your Google Drive. It will be place in your \"home\" page, also known as \"My Drive\". The project will appear as a folder with several files inside of it. Once the project creation process has finished, you are free to move the new folder anywhere in your Drive."),
+                 actionButton("proj_loc_accepted", "Continue"),
+                 # textInput("proj_search", "Where would you like your project to live?"),
+                 # actionButton("parent_dir_entered", "Next"),
                  br(), br()
                ),
                
                
-               htmlOutput("confirm_parent_dir"),
-               br(), br(),
+               # htmlOutput("confirm_parent_dir"),
+               # br(), br(),
                
                ## Communicate that the next part is mostly automated but there will be some manual work ####
                
                conditionalPanel(
-                 condition = "output.good_to_go==\"yes\"",
+                 # condition = "output.good_to_go==\"yes\"",
+                 condition = "input.proj_loc_accepted",
                  p("Ok! From here on out, the process is mostly automated. There will be a few times where we'll stop for some manual actions and checks, but we'll be sure to let you know when we get there."),
                  p("If you're ready (and you're sure the information you entered above is correct) hit the \"Ready\" Button!"),
                  actionButton("start_project", "Ready!"),
