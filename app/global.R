@@ -1,3 +1,4 @@
+# import packages
 library(shiny)
 library(googledrive)
 library(googlesheets4)
@@ -7,17 +8,43 @@ library(waiter)
 library(cli)
 library(gargle)
 
-# onStop(function() {
-#   drive_deauth()
-# })
+# when app is closed, verify user is deauthorized
+onStop(function() {
+  drive_deauth()
+})
 
-drive_auth_configure(path = "./secret/oauth_secret_water.json")
+# set up OAuth client (EDIT FOR DEPLOYMENT)
+drive_auth_configure(path = "./.secrets/client.json")
 
+# set up links for the template files and the banned words
 form_template <- "https://docs.google.com/forms/d/1TUC63kNrlLhupNcBSbPoQX0tGdCLpx9rSfVX5mFBG1U/edit"
 main_template <- "https://docs.google.com/spreadsheets/d/1AmUUw_6sXgMzVGPQrE7ziaeig8p63pdkQSnVggxMfJE/edit"
 site_template <- "https://docs.google.com/spreadsheets/d/1k2wjsG1VgqpUxwC124WaWlGSqIlHIYkTzAUwVRh-Uf4/edit"
 no_no <- readRDS("illegal_words.RData")
 
+
+#' Hide a sheet in a Google Spreadsheet
+#'
+#' @param ssid The Spreadsheet ID (string). Links and dribbles are NOT allowed.
+#' @param sheet_id The sheet ID to change. Can be obtained from [googlesheets4::sheet_properties()].
+#' @param op The operation to perform, either "hide" (the default) or "show".
+#'
+#' @return Nothing, actions are performed invisibly.
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#'   library(googlesheets4)
+#'   
+#'   url <- "link_to_google_file"
+#'   ssid <- as_dribble(url)
+#'
+#'   sheet_ids <- sheet_properties(ssid) %>%
+#'     filter(index == 0) %>%
+#'     select(id)
+#'
+#'   hide_sheet(ssid$id, sheet_ids[[1]][[1]], "hide")
+#' }
 hide_sheet <- function(ssid, sheet_id, op = c("hide", "show")) {
   
   op <- match.arg(op)
@@ -44,6 +71,22 @@ hide_sheet <- function(ssid, sheet_id, op = c("hide", "show")) {
   
 }
 
+#' Find the data for all charts in a Google Spreadsheet file
+#'
+#' @param ssid The Spreadsheet ID (string). Links and dribbles are NOT allowed.
+#'
+#' @return A nested list of chart data as returned from the API.
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#'   library(googlesheets4)
+#'   
+#'   url <- "link_to_google_file"
+#'   ssid <- as_dribble(url)
+#'
+#'   find_chart_data(ssid$id)
+#' }
 find_chart_data <- function(ssid) {
   
   chart_data_req <- request_generate(
@@ -79,7 +122,25 @@ find_chart_data <- function(ssid) {
   
 }
 
-update_title <- function(ssid, chart_num, site_num) {
+#' Update the title of a chart in a Google Spreadsheet (internal purposes)
+#'
+#' @param ssid The Spreadsheet ID (string). Links and dribbles are NOT allowed.
+#' @param chart_num The chart number to edit (integer index).
+#' @param site_num The site number the data was recorded from.
+#'
+#' @return Nothing, all actions are performed invisibly.
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#'   library(googlesheets4)
+#'   
+#'   url <- "link_to_google_file"
+#'   ssid <- as_dribble(url)
+#'
+#'   update_title(ssid$id, 1, 1)
+#' }
+update_title <- function(ssid, chart_num, site_num, wb) {
   
   chart_data <- find_chart_data(ssid)
   
@@ -88,6 +149,7 @@ update_title <- function(ssid, chart_num, site_num) {
   og_title <- chart_spec$title
   
   new_title <- gsub("Site #", paste("Site", site_num), og_title)
+  new_title <- gsub("Waterbody", wb, new_title)
   chart_spec$title <- new_title
   
   # insert updated spec

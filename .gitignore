@@ -2,9 +2,9 @@
 .Rhistory
 .RData
 .Ruserdata
-app/secret/
+app/.secrets/
 chart_ops.R
 test*.R
-credentials.json
-illegal_words.RData
-
+make_project.R
+*.RData
+ingest-functions.R

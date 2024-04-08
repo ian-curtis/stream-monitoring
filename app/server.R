@@ -5,20 +5,27 @@ server <- function(input, output, session) {
   rv <- reactiveValues(results = NULL)
   
   # record the name of the user and send a greeting ####
-  user <- eventReactive(input$auth, {
-    drive_deauth()
-    drive_auth(email = FALSE)
+  observeEvent(input$auth, {
+    
+    # drive_auth(email = FALSE, cache = here::here("app/.cache"))
+    drive_auth(email = FALSE, cache = FALSE)
     gs4_auth(token = drive_token())
-    drive_user()$displayName
+    
+    rv$auth_complete <- "yes"
+    rv$user <- drive_user()$displayName
+    
   })
   
   output$greeting <- renderText({
     
     HTML(paste0("Hey ",
-                "<span style=\"color: #099392\"><b>", user(), "</b></span>",
+                "<span style=\"color: #099392\"><b>", rv$user, "</b></span>",
                 "! Welcome to the app. Now that you're logged in, we can move forward. You first will be asked a couple questions about your project which will help us determine how many files to create. Once these questions are complete, the majority of the process will happen automatically. However, there are a few manual steps. We'll pause a couple times and ask you to perform an action or two."))
   })
   
+  output$auth_complete <- renderText({rv$auth_complete})
+  outputOptions(output, "auth_complete", suspendWhenHidden = FALSE)
+
   # record the waterbody data was recorded from and send a confirmation ####
   observeEvent(input$wb_entered, {
     
@@ -31,7 +38,7 @@ server <- function(input, output, session) {
   output$confirm_wb <- renderText({
     validate(
       need(!any(str_detect(rv$wb, no_no)), message = "Please keep your input family friendly. Try again."),
-      need(rv$wb != "", message = "Please supply a waterbody name.")
+      need(rv$wb != "", message = "Waterbody name cannot be empty.")
     )
     HTML(paste0("Alright! Looks like you are recording data from ", 
                 "<span style=\"color: #099392\"><b>", rv$wb, "</b></span>",
@@ -45,80 +52,85 @@ server <- function(input, output, session) {
   nsites <- eventReactive(input$n_entered, {
     as.integer(input$n_sites)
   })
+  # output$confirm_sites <- renderText({
+  #   HTML(paste0("Cool! Looks like you want to have data for ", 
+  #               "<span style=\"color: #099392\"><b>", pluralize("{nsites()} site{?s}."), "</b></span> ",
+  #               "If that's correct, use the box below to find a location for your project. Type in the name of an existing Google Drive folder you want your project to live in. If you'd like your project to live in your Drive's home page (\"My Drive\"), type nothing and just hit \"Next\". FYI: The project itself will appear as a folder with files within. Note: search terms are CASE SENSITIVE."
+  #   ))
+  # })
+  
   output$confirm_sites <- renderText({
     HTML(paste0("Cool! Looks like you want to have data for ", 
-                "<span style=\"color: #099392\"><b>", pluralize("{nsites()} site{?s}."), "</b></span> ",
-                "If that's correct, use the box below to find a location for your project. Type in the name of an existing Google Drive folder you want your project to live in. If you'd like your project to live in your Drive's home page (\"My Drive\"), type nothing and just hit \"Next\". FYI: The project itself will appear as a folder with files within. Note: search terms are CASE SENSITIVE."
-    ))
+                              "<span style=\"color: #099392\"><b>", 
+                pluralize("{nsites()} site{?s}."), 
+                "</b></span> "))
   })
   
   # record the location of the project and try to find it ####
   
- 
-  
-  observeEvent(input$parent_dir_entered, {
-    
-    if (input$proj_search == "") {
-      
-      rv$results <- NA
-      
-    } else {
-      
-      waiter <- waiter::Waiter$new(html = div(
-        spin_loaders(10),
-        "Searching Google Drive..."))
-      waiter$show()
-      on.exit(waiter$hide())
-      
-      term <- reactive(input$proj_search)
-      
-      search_results <- drive_find(term(), type = "folder")
-      
-      rv$results <- search_results
-      
-    }
-    
-    
-  })
+  # observeEvent(input$parent_dir_entered, {
+  #   
+  #   if (input$proj_search == "") {
+  #     
+  #     rv$results <- NA
+  #     
+  #   } else {
+  #     
+  #     waiter <- waiter::Waiter$new(html = div(
+  #       spin_loaders(10),
+  #       "Searching Google Drive..."))
+  #     waiter$show()
+  #     on.exit(waiter$hide())
+  #     
+  #     term <- reactive(input$proj_search)
+  #     
+  #     search_results <- drive_find(term(), type = "folder")
+  #     
+  #     rv$results <- search_results
+  #     
+  #   }
+  #   
+  #   
+  # })
   
   
-  confirm_dir_message <- eventReactive(rv$results, {
-    
-    if (length(rv$results) == 1) {
-      
-      message <- HTML(paste0(
-        "Got it! You want your project to live inside of the folder called ",
-        "<span style=\"color: #099392\"><b>My Drive</b></span>."
-      ))
-      continue <- "yes"
-      
-    } else if (nrow(rv$results) == 0) {
-      
-      message <- "Looks like no results were found. Did you make your search case sensitive (e.g., \"Data\" ≠ \"data\")? Go ahead and try to search again."
-      continue <- "no"
-      
-    } else if (nrow(rv$results) == 1) {
-      
-      message <- HTML(paste0(
-        "Got it! You want your project to live inside of the folder called ",
-        "<span style=\"color: #099392\"><b>", rv$results$name, "</b></span>."
-      ))
-      continue <- "yes"
-      
-    } else {
-      
-      message <- "We found too many results for that search term. Try entering a more specific phrase."
-      continue <- "no"
-      
-    }
-    
-    list(message, continue)
-    
-  })
+  # confirm_dir_message <- eventReactive(rv$results, {
+  #   
+  #   if (length(rv$results) == 1) {
+  #     
+  #     message <- HTML(paste0(
+  #       "Got it! You want your project to live inside of the folder called ",
+  #       "<span style=\"color: #099392\"><b>My Drive</b></span>."
+  #     ))
+  #     continue <- "yes"
+  #     
+  #   } else if (nrow(rv$results) == 0) {
+  #     
+  #     message <- "Looks like no results were found. Did you make your search case sensitive (e.g., \"Data\" ≠ \"data\")? Go ahead and try to search again."
+  #     continue <- "no"
+  #     
+  #   } else if (nrow(rv$results) == 1) {
+  #     
+  #     message <- HTML(paste0(
+  #       "Got it! You want your project to live inside of the folder called ",
+  #       "<span style=\"color: #099392\"><b>", rv$results$name, "</b></span>."
+  #     ))
+  #     continue <- "yes"
+  #     
+  #   } else {
+  #     
+  #     message <- "We found too many results for that search term. Try entering a more specific phrase."
+  #     continue <- "no"
+  #     
+  #   }
+  #   
+  #   list(message, continue)
+  #   
+  # })
   
-  output$confirm_parent_dir <- renderText({confirm_dir_message()[[1]]})
-  output$good_to_go <- renderText({confirm_dir_message()[[2]]})
-  outputOptions(output, "good_to_go", suspendWhenHidden = FALSE)
+  # output$confirm_parent_dir <- renderText({confirm_dir_message()[[1]]})
+  # output$good_to_go <- renderText({confirm_dir_message()[[2]]})
+  # outputOptions(output, "good_to_go", suspendWhenHidden = FALSE)
   
   ## Main Project Creation Part 1 ####
   
@@ -133,11 +145,15 @@ server <- function(input, output, session) {
     waiter$show()
     on.exit(waiter$hide())
     
-    if(is.na(rv$results)) given_dir <- NULL else given_dir <- rv$results
+    # if(is.na(rv$results)) given_dir <- NULL else given_dir <- rv$results
+    # 
+    # proj_dir <- drive_mkdir(
+    #   name = paste0("Stream Monitoring - ", input$wb), 
+    #   path = given_dir)
     
     proj_dir <- drive_mkdir(
-      name = paste0("Stream Monitoring - ", input$wb), 
-      path = given_dir)
+      name = paste0("Stream Monitoring - ", input$wb)
+    )
     
     form_copy <- drive_cp(form_template, name = "01 Data Entry Form") %>% 
       drive_mv(path = proj_dir)
@@ -295,6 +311,8 @@ server <- function(input, output, session) {
     
   })
   
+  ### VERIFY THE CONNECTIONS WERE DONE CORRECTLY
+  
   ### Create the site sheets (and ask for manual input) ####
   
   import_site_data <- function(primary_link, source_str, range, site_num) {
@@ -352,13 +370,13 @@ server <- function(input, output, session) {
       
       # for (chart_num in seq(1, 8)) {
       #   
-      #   update_title(site_copy$id, chart_num, site)
+      #   update_title(site_copy$id, chart_num, site, rv$wb)
       #   
       # }
       
       # for (chart_num in c(1, 2, 5, 6, 7, 8)) {
       #   
-      #   update_title(site_copy$id, chart_num, site)
+      #   update_title(site_copy$id, chart_num, site, rv$wb)
       #   
       # }
       
@@ -402,6 +420,8 @@ server <- function(input, output, session) {
       sep = "<br><br>"
     ))
   })
+  
+  # ADD IN VERIFICATION THAT THE SHEETS WERE LINKED PROPERLY
   
   observeEvent(input$site_linked, {
     
