@@ -1,0 +1,12 @@
+.nav-item {
+  color: white;
+}
+
+.nav-link .active {
+  font-weight: bold;
+  color: #EA89DC;
+}
+
+.navbar {
+  background: black;
+}

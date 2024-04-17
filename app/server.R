@@ -1,6 +1,5 @@
 # Define server logic ####
 server <- function(input, output, session) {
-  
   waiter_hide()
   rv <- reactiveValues(results = NULL)
   
@@ -155,10 +154,54 @@ server <- function(input, output, session) {
       name = paste0("Stream Monitoring - ", input$wb)
     )
     
+    checklist_copy <- drive_cp(proj_checklist, name = "00 Project Checklist") %>% 
+      drive_mv(path = proj_dir)
+    
     form_copy <- drive_cp(form_template, name = "01 Data Entry Form") %>% 
       drive_mv(path = proj_dir)
     form_link <- drive_link(form_copy)
     form_resp_link <- paste0(drive_link(form_copy), "#responses")
+    
+    form_data <- get_form_data(form_copy$id)
+    
+    #### Edit questions that have you choose a site number ####
+    # need to edit [[5]], [[14]], [[20]]
+    questions <- data$items
+    
+    for (q_num in c(5, 14, 20)) {
+      
+      question <- questions[[q_num]]
+      
+      item_id <- question$itemId
+      qid <- question$questionItem$question$questionId
+      
+      new_options <- list()
+      
+      for (i in seq(nsites())) {
+        
+        new_options[[i]] <- list(value = paste("Site", i))
+        
+      }
+      
+      question$questionItem$question$choiceQuestion$options <- new_options
+      
+      item_update_req <- form_req_gen(
+        "forms.forms.batchUpdate",
+        params = list(
+          formId = form_copy$id,
+          includeFormInResponse = "False",
+          requests = list(updateItem = list(item = question,
+                                            location = list(index = q_num - 1),
+                                            updateMask = "questionItem.question.choiceQuestion.options")),
+          writeControl = list(targetRevisionId = data$revisionId)
+          
+        )
+      )
+      
+      item_update_raw <- request_make(item_update_req)
+      response_process(item_update_raw)
+      
+    }
     
     rv$wb <- input$wb
     rv$n_sites <- as.integer(input$n_sites)
@@ -192,7 +235,7 @@ server <- function(input, output, session) {
     
     files_in_dir <- drive_ls(rv$proj_dir) %>% nrow()
     
-    if (files_in_dir == 1) rv$redo_form <- "yes" else rv$redo_form <- "no"
+    if (files_in_dir == 2) rv$redo_form <- "yes" else rv$redo_form <- "no"
     
   })
   

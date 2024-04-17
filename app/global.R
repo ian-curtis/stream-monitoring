@@ -7,6 +7,7 @@ library(stringr)
 library(waiter)
 library(cli)
 library(gargle)
+library(bslib)
 
 # when app is closed, verify user is deauthorized
 onStop(function() {
@@ -17,6 +18,7 @@ onStop(function() {
 drive_auth_configure(path = "./.secrets/client.json")
 
 # set up links for the template files and the banned words
+proj_checklist <- "https://docs.google.com/document/d/1jWs3EtLgnGE_M_aPtOMon9yW6zmc8ZmoPXRSmvyqbeU"
 form_template <- "https://docs.google.com/forms/d/1TUC63kNrlLhupNcBSbPoQX0tGdCLpx9rSfVX5mFBG1U/edit"
 main_template <- "https://docs.google.com/spreadsheets/d/1AmUUw_6sXgMzVGPQrE7ziaeig8p63pdkQSnVggxMfJE/edit"
 site_template <- "https://docs.google.com/spreadsheets/d/1k2wjsG1VgqpUxwC124WaWlGSqIlHIYkTzAUwVRh-Uf4/edit"
@@ -174,5 +176,46 @@ update_title <- function(ssid, chart_num, site_num, wb) {
   
   resp_raw <- request_make(req)
   response <- response_process(resp_raw)
+  
+}
+
+form_req_gen <- function(endpoint = character(),
+                         params = list(),
+                         key = NULL,
+                         token = drive_token()) {
+  
+  # endpoints derived from Discovery Document which was grabbed from ingest-functions.R within gargle
+  # a few modifications had to be made to the ingesting file as the Forms API is a little different?
+  .endpoints <- readRDS(here::here("form_endpoints.RData"))
+  ept <- .endpoints[[endpoint]]
+  if (is.null(ept)) {
+    print("Could not find your endpoint!")
+  }
+  
+  req <- gargle::request_develop(endpoint = ept, params = params)
+  
+  gar_req <- gargle::request_build(
+    path = req$path,
+    method = req$method,
+    params = req$params,
+    body = req$body,
+    token = token
+  )
+  
+  gar_req$url <- gsub("www.", "forms.", gar_req$url)
+  gar_req
+}
+
+get_form_data <- function(form_id) {
+  
+  form_data_req <- form_req_gen(
+    "forms.forms.get",
+    params = list(
+      formId = form_id
+    )
+  )
+  
+  form_data_raw <- request_make(form_data_req)
+  response_process(form_data_raw)
   
 }

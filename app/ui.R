@@ -1,5 +1,11 @@
 # Define UI ####
 ui <- fluidPage(
+  theme = bs_theme(version = 4,
+                   base_font = c("Georgia", "Garamond", "'Times New Roman'", "Times", "serif")
+                   ),
+  # tags$head(
+  #   tags$link(rel = "stylesheet", type = "text/css", href = "style.css")
+  # ),
   useWaiter(),
   waiterShowOnLoad(),
   
@@ -147,7 +153,11 @@ ui <- fluidPage(
     
     
     tabPanel("How Your Data Is Used",
-             p("Information on what data is stored and used and how/why.")
+             p("Your privacy is a primary concern. When designing this web app, care was taken to ensure that all data that is collected is used and that no unnecessary data is collected or stored. Be assured that your data is not stored anywhere on a server, nor will it be sold to anyone else."),
+             p("In order to enable Google sign on, an app has to be verified through Google who ensures that it's sign on capabilities are being used properly. Once you as a user sign in through Google, the app technically has access to all of your Google Drive files. It is able to read them, write to them, create new ones, delete some, and could even empty your trash for you. We request such big permissions here because we are in fact reading files, creating new files, and editing files. However, only the actions that need to be done are programmed in. In fact, there are no commands in the app for deleting files. If you accidentally start the program and need to start over, you will need to manually delete any files the program creates. This is in place to ensure that no accidental deletion of important files occurs."),
+             p("The only personal data about you that is accessed is the name associated with your Google account. We do this not to get access to your data but to help you verify that you have logged in to the correct account. The app will greet you by name and that is all your name is used for."),
+             p("Once you have logged in, an access token is created allowing the app access to your Google files. This token is not cached (i.e., is not stored anywhere). Although further testing is needed, it is likely that if you spend too much time on the app, your token will expire and you will need to restart the process. We do this to reduce the risk that access tokens get exposed and others on the internet get access to your files."),
+             p("More testing is needed, but the idea is that once you close the app or refresh the page, you are no longer connected to the app and must log in again the next time you wish to use it. We hope that this helps you be assured that your files and your data are only used to make the project file and that's it.")
     )
     
   )
