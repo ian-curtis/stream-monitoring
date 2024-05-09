@@ -1,13 +1,20 @@
 # Define server logic ####
 server <- function(input, output, session) {
   waiter_hide()
+  
+  session$onSessionEnded(function() { 
+    
+    unlink(".secrets/.user", recursive = TRUE)
+    
+    })
+  
   rv <- reactiveValues(results = NULL)
   
   # record the name of the user and send a greeting ####
   observeEvent(input$auth, {
     
     # drive_auth(email = FALSE, cache = here::here("app/.cache"))
-    drive_auth(email = FALSE, cache = FALSE)
+    drive_auth(email = TRUE, cache = ".secrets/.user")
     gs4_auth(token = drive_token())
     
     rv$auth_complete <- "yes"
@@ -24,7 +31,7 @@ server <- function(input, output, session) {
   
   output$auth_complete <- renderText({rv$auth_complete})
   outputOptions(output, "auth_complete", suspendWhenHidden = FALSE)
-
+  
   # record the waterbody data was recorded from and send a confirmation ####
   observeEvent(input$wb_entered, {
     
@@ -41,16 +48,16 @@ server <- function(input, output, session) {
     )
     HTML(paste0("Alright! Looks like you are recording data from ", 
                 "<span style=\"color: #099392\"><b>", rv$wb, "</b></span>",
-                "! If this is correct, please enter the number of sites you are measuring from."))
+                "! If this is not correct, please type a new name and try again."))
   })
   
   output$wb_ready <- renderText({rv$wb_ready})
   outputOptions(output, "wb_ready", suspendWhenHidden = FALSE)
-
+  
   # record the number of sites and send a confirmation ####
-  nsites <- eventReactive(input$n_entered, {
-    as.integer(input$n_sites)
-  })
+  # nsites <- eventReactive(input$n_entered, {
+  #   as.integer(input$n_sites)
+  # })
   # output$confirm_sites <- renderText({
   #   HTML(paste0("Cool! Looks like you want to have data for ", 
   #               "<span style=\"color: #099392\"><b>", pluralize("{nsites()} site{?s}."), "</b></span> ",
@@ -58,12 +65,12 @@ server <- function(input, output, session) {
   #   ))
   # })
   
-  output$confirm_sites <- renderText({
-    HTML(paste0("Cool! Looks like you want to have data for ", 
-                              "<span style=\"color: #099392\"><b>", 
-                pluralize("{nsites()} site{?s}."), 
-                "</b></span> "))
-  })
+  # output$confirm_sites <- renderText({
+  #   HTML(paste0("Cool! Looks like you want to have data for ", 
+  #                             "<span style=\"color: #099392\"><b>", 
+  #               pluralize("{nsites()} site{?s}."), 
+  #               "</b></span> "))
+  # })
   
   # record the location of the project and try to find it ####
   
@@ -154,7 +161,7 @@ server <- function(input, output, session) {
       name = paste0("Stream Monitoring - ", input$wb)
     )
     
-    checklist_copy <- drive_cp(proj_checklist, name = "00 Project Checklist") %>% 
+    checklist_copy <- drive_cp(proj_checklist, name = "00 Project Checklist and Notes") %>% 
       drive_mv(path = proj_dir)
     
     form_copy <- drive_cp(form_template, name = "01 Data Entry Form") %>% 
@@ -162,49 +169,7 @@ server <- function(input, output, session) {
     form_link <- drive_link(form_copy)
     form_resp_link <- paste0(drive_link(form_copy), "#responses")
     
-    form_data <- get_form_data(form_copy$id)
-    
-    #### Edit questions that have you choose a site number ####
-    # need to edit [[5]], [[14]], [[20]]
-    questions <- data$items
-    
-    for (q_num in c(5, 14, 20)) {
-      
-      question <- questions[[q_num]]
-      
-      item_id <- question$itemId
-      qid <- question$questionItem$question$questionId
-      
-      new_options <- list()
-      
-      for (i in seq(nsites())) {
-        
-        new_options[[i]] <- list(value = paste("Site", i))
-        
-      }
-      
-      question$questionItem$question$choiceQuestion$options <- new_options
-      
-      item_update_req <- form_req_gen(
-        "forms.forms.batchUpdate",
-        params = list(
-          formId = form_copy$id,
-          includeFormInResponse = "False",
-          requests = list(updateItem = list(item = question,
-                                            location = list(index = q_num - 1),
-                                            updateMask = "questionItem.question.choiceQuestion.options")),
-          writeControl = list(targetRevisionId = data$revisionId)
-          
-        )
-      )
-      
-      item_update_raw <- request_make(item_update_req)
-      response_process(item_update_raw)
-      
-    }
-    
     rv$wb <- input$wb
-    rv$n_sites <- as.integer(input$n_sites)
     rv$proj_dir <- proj_dir
     rv$form_copy <- form_copy
     rv$form_link <- form_link
@@ -260,7 +225,7 @@ server <- function(input, output, session) {
     
     # rv$form_r_link <- form_r_link
     sheet_rename(form_r_link, new_name = "Data")
-    drive_rename(form_r_link, name = "02 Raw Data")
+    drive_rename(form_r_link, name = "02 Raw Data (only edit if necessary")
     
     waiter$hide()
     
@@ -270,7 +235,7 @@ server <- function(input, output, session) {
     waiter$show()
     
     #### copy the primary sheet and move it to the correct place ####
-    main_copy <- drive_cp(main_template, name = "03 Primary Datasheet") %>%
+    main_copy <- drive_cp(main_template, name = "03 Primary Datasheet (do not edit)") %>%
       drive_mv(path = rv$proj_dir)
     main_link <- drive_link(main_copy)
     rv$main_link <- main_link
@@ -282,19 +247,12 @@ server <- function(input, output, session) {
       "Setting up connections between raw data and primary sheet..."))
     waiter$show()
     
-    #### write in the waterbody name to the sub data sheet ####
-    range_write(main_copy,
-                data.frame(x = rv$wb),
-                sheet = "Sub Data",
-                range = "L2",
-                col_names = FALSE)
-    
     #### set up connections between the raw data and the primary sheet ####
     
     
     import_ecoli <- paste0("=QUERY(IMPORTRANGE(\"", form_r_link,
-                           "\", \"'Data'!L2:P\"), ",
-                           "\"select * where Col1 is not null order by Col2\")")
+                           "\", \"'Data'!K2:O\"), ",
+                           "\"select * where Col1 is not null order by Col2\", 0)")
     
     range_write(main_copy,
                 data.frame(x = gs4_formula(import_ecoli)),
@@ -303,8 +261,8 @@ server <- function(input, output, session) {
                 col_names = FALSE)
     
     import_macro <- paste0("=QUERY(IMPORTRANGE(\"", form_r_link,
-                           "\", \"'Data'!Q2:T\"), ",
-                           "\"select * where Col1 is not null order by Col2\")")
+                           "\", \"'Data'!P2:T\"), ",
+                           "\"select * where Col3 is not null order by Col1, Col2\", 0)")
     
     range_write(main_copy,
                 data.frame(x = gs4_formula(import_macro)),
@@ -313,8 +271,8 @@ server <- function(input, output, session) {
                 col_names = FALSE)
     
     import_chem <- paste0("=QUERY(IMPORTRANGE(\"", form_r_link,
-                          "\", \"'Data'!D2:K\"), ",
-                          "\"select * where Col1 is not null order by Col2\")")
+                          "\", \"'Data'!C2:J\"), ",
+                          "\"select * where Col1 is not null order by Col2\", 0)")
     
     range_write(main_copy,
                 data.frame(x = gs4_formula(import_chem)),
@@ -354,63 +312,64 @@ server <- function(input, output, session) {
     
   })
   
-  ### VERIFY THE CONNECTIONS WERE DONE CORRECTLY
+  ### tk VERIFY THE CONNECTIONS WERE DONE CORRECTLY
   
   ### Create the site sheets (and ask for manual input) ####
-  
-  import_site_data <- function(primary_link, source_str, range, site_num) {
-    
-    string <- paste0("=QUERY(IMPORTRANGE(\"", primary_link, 
-                     "\", \"'", source_str, "'!", range, "\"), \"select * where Col2 = 'Site ", site_num, "'\", 1)")
-    
-    return(string)
-    
-  }
   
   observeEvent(input$primary_linked, {
     
     site_sheets <- list()
     
-    for (site in seq(rv$n_sites)) {
+    for (site in seq(6)) {
       
       waiter <- waiter::Waiter$new(html = div(
         spin_loaders(10),
-        paste0("Setting up Site Sheet ", site, " of ", rv$n_sites, "...")))
+        paste0("Setting up Site Sheet ", site, " of 6...")))
       waiter$show()
       
-      site_copy <- drive_cp(site_template, name = paste0("04-", site, " Site ", site, " Sheet")) %>%
+      site_copy <- drive_cp(site_template, name = paste0("04-", site, " Site ", site, " Sheet (do not edit)")) %>%
         drive_mv(path = rv$proj_dir)
       site_link <- drive_link(site_copy)
       site_sheets[[site]] <- site_link
       
       # site e. coli data
+      ecoli_str <- paste0("=QUERY(IMPORTRANGE(\"", rv$main_link, 
+                          "\", \"'", "All E. Coli Data", "'!A:F\"), 
+                       \"select * where Col2 = 'Site ", site, "' order by Col1, Col3\", 1)")
       range_write(site_copy,
-                  data.frame(x = gs4_formula(import_site_data(rv$main_link, "All E. Coli Data", "A:F", site))),
-                  sheet = "Data",
+                  data.frame(x = gs4_formula(ecoli_str)),
+                  sheet = "Raw Data",
                   range = "A1",
                   col_names = FALSE)
       
       # site macro data
+      macro_str <- paste0("=QUERY(IMPORTRANGE(\"", rv$main_link, 
+                          "\", \"'", "All Macro Data", "'!A:E\"), 
+                       \"select * where Col3 = 'Site ", site, "' order by Col2\", 1)")
       range_write(site_copy,
-                  data.frame(x = gs4_formula(import_site_data(rv$main_link, "All Macro Data", "A:F", site))),
-                  sheet = "Data",
+                  data.frame(x = gs4_formula(macro_str)),
+                  sheet = "Raw Data",
                   range = "K1",
                   col_names = FALSE)
       
       # site stream chem data
+      chem_str <- paste0("=QUERY(IMPORTRANGE(\"", rv$main_link, 
+                         "\", \"'", "All Stream Chem Data", "'!A:H\"), 
+                       \"select * where Col2 = 'Site ", site, "' order by Col1\", 1)")
       range_write(site_copy,
-                  data.frame(x = gs4_formula(import_site_data(rv$main_link, "All Stream Chem Data", "A:H", site))),
-                  sheet = "Data",
-                  range = "S1",
+                  data.frame(x = gs4_formula(chem_str)),
+                  sheet = "Raw Data",
+                  range = "T1",
                   col_names = FALSE)
       
-      # site macro data
+      # site sub data
       range_write(site_copy,
-                  data.frame(x = gs4_formula(paste0("=IMPORTRANGE(\"", rv$main_link, "\", \"'Sub Data'!D:J\")"))),
-                  sheet = "Data",
-                  range = "AB1",
+                  data.frame(x = gs4_formula(paste0("=IMPORTRANGE(\"", rv$main_link, "\", \"'Sub Data'!A:I\")"))),
+                  sheet = "Raw Data",
+                  range = "AC1",
                   col_names = FALSE)
       
+      # Change these numbers later
       # for (chart_num in seq(1, 8)) {
       #   
       #   update_title(site_copy$id, chart_num, site, rv$wb)
@@ -472,20 +431,24 @@ server <- function(input, output, session) {
       spin_loaders(10),
       paste0("Finalizing site sheets...")))
     waiter$show()
-
-    ## Hide the "data" sheet in the spreadsheet ####
+    
+    ## Hide the "data" sheet  and "macro data" in the spreadsheet ####
     for (url in rv$site_sheets) {
       ssid <- as_dribble(url)
       
       sheet_ids <- sheet_properties(ssid) %>%
-        filter(index == 0) %>%
+        filter(index <= 1) %>%
         select(id)
-  
+      
       hide_sheet(ssid$id, sheet_ids[[1]][[1]], "hide")
-
+      hide_sheet(ssid$id, sheet_ids[[1]][[2]], "hide")
+      
     }
     
     rv$proj_status <- "complete"
+    
+    drive_deauth()
+    gs4_deauth()
     
     waiter$hide()
     

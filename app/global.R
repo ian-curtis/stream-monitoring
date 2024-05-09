@@ -8,13 +8,14 @@ library(waiter)
 library(cli)
 library(gargle)
 library(bslib)
+library(fresh)
 
 # when app is closed, verify user is deauthorized
 onStop(function() {
   drive_deauth()
 })
 
-# set up OAuth client (EDIT FOR DEPLOYMENT)
+# set up OAuth client (EDIT FOR DEPLOYMENT?)
 drive_auth_configure(path = "./.secrets/client.json")
 
 # set up links for the template files and the banned words
@@ -22,7 +23,7 @@ proj_checklist <- "https://docs.google.com/document/d/1jWs3EtLgnGE_M_aPtOMon9yW6
 form_template <- "https://docs.google.com/forms/d/1TUC63kNrlLhupNcBSbPoQX0tGdCLpx9rSfVX5mFBG1U/edit"
 main_template <- "https://docs.google.com/spreadsheets/d/1AmUUw_6sXgMzVGPQrE7ziaeig8p63pdkQSnVggxMfJE/edit"
 site_template <- "https://docs.google.com/spreadsheets/d/1k2wjsG1VgqpUxwC124WaWlGSqIlHIYkTzAUwVRh-Uf4/edit"
-no_no <- readRDS("illegal_words.RData")
+no_no <- readRDS("data/illegal_words.rds")
 
 
 #' Hide a sheet in a Google Spreadsheet
