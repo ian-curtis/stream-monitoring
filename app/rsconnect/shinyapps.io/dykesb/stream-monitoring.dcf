@@ -1,0 +1,12 @@
+name: stream-monitoring
+title: stream-monitoring
+username: dykesb
+account: dykesb
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 11780140
+bundleId: 8528296
+url: https://dykesb.shinyapps.io/stream-monitoring/
+version: 1
+asMultiple: FALSE
+asStatic: FALSE

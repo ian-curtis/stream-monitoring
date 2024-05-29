@@ -5,6 +5,6 @@
 app/.secrets/
 chart_ops.R
 test*.R
-make_project.R
 *.RData
-ingest-functions.R
+my_ingest.R
+/Users/iancurtis/Documents/coding/stream-monitoring/.secrets

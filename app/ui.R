@@ -1,5 +1,11 @@
 # Define UI ####
 ui <- fluidPage(
+  theme = bs_theme(version = 4,
+                   base_font = c("Georgia", "Garamond", "'Times New Roman'", "Times", "serif")
+  ),
+  # tags$head(
+  #   tags$link(rel = "stylesheet", type = "text/css", href = "style.css")
+  # ),
   useWaiter(),
   waiterShowOnLoad(),
   
@@ -46,24 +52,14 @@ ui <- fluidPage(
                  condition = "input.wb_entered",
                  htmlOutput("confirm_wb")
                ),
-
-               ## Number of Sites question ####
-               conditionalPanel(
-                 condition = "output.wb_ready==\"yes\"", # NEW CONDITION HERE
-                 br(),
-                 selectInput("n_sites", label = "Number of Sites Recorded",
-                             choices = c(1, 2, 3, 4, 5, 6), selected = 1),
-                 actionButton("n_entered", "Next"),
-                 br(), br()
-               ),
                
-               htmlOutput("confirm_sites"),
                br(),
                
                ## Project location question ####
                conditionalPanel(
-                 condition = "input.n_entered",
-                 p("As of the current version of this application, your project will be built to your Google Drive. It will be place in your \"home\" page, also known as \"My Drive\". The project will appear as a folder with several files inside of it. Once the project creation process has finished, you are free to move the new folder anywhere in your Drive."),
+                 condition = "output.wb_ready",
+                 p("As of the current version of this application, your project will be built to your Google Drive. It will be placed in your \"home\" page, also known as \"My Drive\". The project will appear as a folder with several files inside of it. Once the project creation process has finished, you are free to move the new folder anywhere in your Drive."),
+                 tags$p("Do note that the project will create enough files to support up to six unique sites. You do not have to use all six sites at once but they are there in case you wish to start measuring from a new site."),
                  actionButton("proj_loc_accepted", "Continue"),
                  # textInput("proj_search", "Where would you like your project to live?"),
                  # actionButton("parent_dir_entered", "Next"),
@@ -145,12 +141,15 @@ ui <- fluidPage(
              )
     ),
     
-    
+    # Privacy Policy ####
     tabPanel("How Your Data Is Used",
-             p("Information on what data is stored and used and how/why.")
+             p("Your privacy is a primary concern. When designing this web app, care was taken to ensure that all data that is collected is used and that no unnecessary data is collected or stored. Be assured that your data is not sent to be stored on a server, nor will it be sold to anyone else."),
+             p("In order to enable Google sign on, an app has to be verified through Google who ensures that its sign on capabilities are being used properly. Once you as a user sign in through Google, the app technically has access to all of your Google Drive files. It is able to read them, write to them, create new ones, delete some, and could even empty your trash for you. We request such big permissions here because we are in fact reading files, creating new files, and editing files. However, only the actions that need to be done are programmed in. In fact, there are no commands in the app for deleting files. If you accidentally start the program and need to start over, you will need to manually delete any files the program creates. This is in place to ensure that no accidental deletion of important files occurs."),
+             p("The only personal data about you that is accessed is the name associated with your Google account. We do this not to get access to your data but to help you verify that you have logged in to the correct account. The app will greet you by name and that is all your name is used for."),
+             p("Once you have logged in, an access token is created allowing the app access to your Google files. This token IS cached (i.e., is temporarily stored within the app). We do this to to make the sign on process as simple as possible and to ensure that the authentication process will work both when testing the app and when it is actually published online."),
+             p("Once you close the app, the folder and file containing your account's access token is deleted off of the app. If you'd like to use the app again, you will have to sign in again to allow the app to create a new token for your account. We hope that this helps you be assured that your files and your data are only used to make the project file and that's it.")
     )
     
   )
 )
-
 ui
