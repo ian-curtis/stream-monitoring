@@ -54,89 +54,6 @@ server <- function(input, output, session) {
   output$wb_ready <- renderText({rv$wb_ready})
   outputOptions(output, "wb_ready", suspendWhenHidden = FALSE)
   
-  # record the number of sites and send a confirmation ####
-  # nsites <- eventReactive(input$n_entered, {
-  #   as.integer(input$n_sites)
-  # })
-  # output$confirm_sites <- renderText({
-  #   HTML(paste0("Cool! Looks like you want to have data for ", 
-  #               "<span style=\"color: #099392\"><b>", pluralize("{nsites()} site{?s}."), "</b></span> ",
-  #               "If that's correct, use the box below to find a location for your project. Type in the name of an existing Google Drive folder you want your project to live in. If you'd like your project to live in your Drive's home page (\"My Drive\"), type nothing and just hit \"Next\". FYI: The project itself will appear as a folder with files within. Note: search terms are CASE SENSITIVE."
-  #   ))
-  # })
-  
-  # output$confirm_sites <- renderText({
-  #   HTML(paste0("Cool! Looks like you want to have data for ", 
-  #                             "<span style=\"color: #099392\"><b>", 
-  #               pluralize("{nsites()} site{?s}."), 
-  #               "</b></span> "))
-  # })
-  
-  # record the location of the project and try to find it ####
-  
-  # observeEvent(input$parent_dir_entered, {
-  #   
-  #   if (input$proj_search == "") {
-  #     
-  #     rv$results <- NA
-  #     
-  #   } else {
-  #     
-  #     waiter <- waiter::Waiter$new(html = div(
-  #       spin_loaders(10),
-  #       "Searching Google Drive..."))
-  #     waiter$show()
-  #     on.exit(waiter$hide())
-  #     
-  #     term <- reactive(input$proj_search)
-  #     
-  #     search_results <- drive_find(term(), type = "folder")
-  #     
-  #     rv$results <- search_results
-  #     
-  #   }
-  #   
-  #   
-  # })
-  
-  
-  # confirm_dir_message <- eventReactive(rv$results, {
-  #   
-  #   if (length(rv$results) == 1) {
-  #     
-  #     message <- HTML(paste0(
-  #       "Got it! You want your project to live inside of the folder called ",
-  #       "<span style=\"color: #099392\"><b>My Drive</b></span>."
-  #     ))
-  #     continue <- "yes"
-  #     
-  #   } else if (nrow(rv$results) == 0) {
-  #     
-  #     message <- "Looks like no results were found. Did you make your search case sensitive (e.g., \"Data\" ≠ \"data\")? Go ahead and try to search again."
-  #     continue <- "no"
-  #     
-  #   } else if (nrow(rv$results) == 1) {
-  #     
-  #     message <- HTML(paste0(
-  #       "Got it! You want your project to live inside of the folder called ",
-  #       "<span style=\"color: #099392\"><b>", rv$results$name, "</b></span>."
-  #     ))
-  #     continue <- "yes"
-  #     
-  #   } else {
-  #     
-  #     message <- "We found too many results for that search term. Try entering a more specific phrase."
-  #     continue <- "no"
-  #     
-  #   }
-  #   
-  #   list(message, continue)
-  #   
-  # })
-  
-  # output$confirm_parent_dir <- renderText({confirm_dir_message()[[1]]})
-  # output$good_to_go <- renderText({confirm_dir_message()[[2]]})
-  # outputOptions(output, "good_to_go", suspendWhenHidden = FALSE)
   
   ## Main Project Creation Part 1 ####
   
@@ -150,12 +67,6 @@ server <- function(input, output, session) {
       "Creating a new folder and a Google Form (for data input)..."))
     waiter$show()
     on.exit(waiter$hide())
-    
-    # if(is.na(rv$results)) given_dir <- NULL else given_dir <- rv$results
-    # 
-    # proj_dir <- drive_mkdir(
-    #   name = paste0("Stream Monitoring - ", input$wb), 
-    #   path = given_dir)
     
     proj_dir <- drive_mkdir(
       name = paste0("Stream Monitoring - ", input$wb)
@@ -225,7 +136,7 @@ server <- function(input, output, session) {
     
     # rv$form_r_link <- form_r_link
     sheet_rename(form_r_link, new_name = "Data")
-    drive_rename(form_r_link, name = "02 Raw Data (only edit if necessary")
+    drive_rename(form_r_link, name = "02 Raw Data (only edit if necessary)")
     
     waiter$hide()
     
@@ -262,7 +173,7 @@ server <- function(input, output, session) {
     
     import_macro <- paste0("=QUERY(IMPORTRANGE(\"", form_r_link,
                            "\", \"'Data'!P2:T\"), ",
-                           "\"select * where Col3 is not null order by Col1, Col2\", 0)")
+                           "\"select * where Col3 is not null order by Col1, Col2, Col3\", 0)")
     
     range_write(main_copy,
                 data.frame(x = gs4_formula(import_macro)),
@@ -272,7 +183,7 @@ server <- function(input, output, session) {
     
     import_chem <- paste0("=QUERY(IMPORTRANGE(\"", form_r_link,
                           "\", \"'Data'!C2:J\"), ",
-                          "\"select * where Col1 is not null order by Col2\", 0)")
+                          "\"select * where Col1 is not null order by Col1, Col2\", 0)")
     
     range_write(main_copy,
                 data.frame(x = gs4_formula(import_chem)),
@@ -327,7 +238,7 @@ server <- function(input, output, session) {
         paste0("Setting up Site Sheet ", site, " of 6...")))
       waiter$show()
       
-      site_copy <- drive_cp(site_template, name = paste0("04-", site, " Site ", site, " Sheet (do not edit)")) %>%
+      site_copy <- drive_cp(site_template, name = paste0("04-", site, " Site ", site, " Sheet (only edit plots)")) %>%
         drive_mv(path = rv$proj_dir)
       site_link <- drive_link(site_copy)
       site_sheets[[site]] <- site_link
