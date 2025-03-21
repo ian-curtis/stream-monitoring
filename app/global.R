@@ -11,6 +11,7 @@ library(bslib)
 library(fresh)
 
 # when app is closed, verify user is deauthorized
+# I don't know if this actually works...
 onStop(function() {
   drive_deauth()
 })
@@ -19,10 +20,10 @@ onStop(function() {
 drive_auth_configure(path = "./.secrets/client.json")
 
 # set up links for the template files and the banned words
-proj_checklist <- "https://docs.google.com/document/d/1jWs3EtLgnGE_M_aPtOMon9yW6zmc8ZmoPXRSmvyqbeU"
-form_template <- "https://docs.google.com/forms/d/1TUC63kNrlLhupNcBSbPoQX0tGdCLpx9rSfVX5mFBG1U/edit"
-main_template <- "https://docs.google.com/spreadsheets/d/1AmUUw_6sXgMzVGPQrE7ziaeig8p63pdkQSnVggxMfJE/edit"
-site_template <- "https://docs.google.com/spreadsheets/d/1k2wjsG1VgqpUxwC124WaWlGSqIlHIYkTzAUwVRh-Uf4/edit"
+# proj_checklist <- "https://docs.google.com/document/d/1jWs3EtLgnGE_M_aPtOMon9yW6zmc8ZmoPXRSmvyqbeU"
+form_template <- "https://docs.google.com/forms/d/1Pd09xnHNOX6Q9JXFQ-L8hUClaeBaTAGU8xkYgTylqwY/edit"
+main_template <- "https://docs.google.com/spreadsheets/d/1rlhVZuQGNeazfnfzOLMBozkUBcti78dJmnqxuGXDy4k"
+site_template <- "https://docs.google.com/spreadsheets/d/1W5xNg5NlKTC43BantaZmQk-apgA1F9hmXq0zVElK2mg/edit"
 no_no <- readRDS("data/illegal_words.rds")
 
 
@@ -143,7 +144,7 @@ find_chart_data <- function(ssid) {
 #'
 #'   update_title(ssid$id, 1, 1)
 #' }
-update_title <- function(ssid, chart_num, site_num, wb) {
+update_title <- function(ssid, chart_num, site_num) {
   
   chart_data <- find_chart_data(ssid)
   
@@ -152,8 +153,61 @@ update_title <- function(ssid, chart_num, site_num, wb) {
   og_title <- chart_spec$title
   
   new_title <- gsub("Site #", paste("Site", site_num), og_title)
-  new_title <- gsub("Waterbody", wb, new_title)
   chart_spec$title <- new_title
+  
+  # insert updated spec
+  chart_data[[chart_num]]$spec <- chart_spec
+  
+  # build request
+  title_req <- list(
+    updateChartSpec =
+      list(chartId = chart_data[[chart_num]]$chartId,
+           spec = chart_data[[chart_num]]$spec)
+  )
+  
+  req <- request_generate(
+    "sheets.spreadsheets.batchUpdate",
+    params = list(
+      spreadsheetId = ssid,
+      requests = title_req
+    )
+  )
+  
+  # print(req)
+  
+  resp_raw <- request_make(req)
+  response <- response_process(resp_raw)
+  
+}
+
+#' Update the subtitle of a chart in a Google Spreadsheet (internal purposes)
+#'
+#' @param ssid The Spreadsheet ID (string). Links and dribbles are NOT allowed.
+#' @param chart_num The chart number to edit (integer index).
+#' @param wb The name of the waterbody the data was recorded from.
+#'
+#' @return Nothing, all actions are performed invisibly.
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#'   library(googlesheets4)
+#'   
+#'   url <- "link_to_google_file"
+#'   ssid <- as_dribble(url)
+#'
+#'   update_subtitle(ssid$id, 1, "River")
+#' }
+update_subtitle <- function(ssid, chart_num, wb) {
+  
+  chart_data <- find_chart_data(ssid)
+  
+  # pull out original spec and update the title
+  chart_spec <- chart_data[[chart_num]]$spec
+  og_subtitle <- chart_spec$subtitle
+  
+  new_subtitle <- gsub("WATERBODY", wb, og_subtitle)
+  chart_spec$subtitle <- new_subtitle
   
   # insert updated spec
   chart_data[[chart_num]]$spec <- chart_spec

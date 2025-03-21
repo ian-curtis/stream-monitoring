@@ -15,8 +15,7 @@ ui <- fluidPage(
     "Stream Monitoring: New Project Creation",
     tabPanel("Home",
              mainPanel(
-               tags$p("Welcome to the interface used to create a new stream monitoring project!"),
-               p("Details about why this exists, who might want to use it, and what it does")
+               tags$p("Welcome to the interface used to create a new stream monitoring project!")
              )
     ),
     
@@ -25,7 +24,9 @@ ui <- fluidPage(
              mainPanel(
                
                ## Authenticate ####
-               tags$p("Hello! Before we begin, we need access to your Google account. This is necessary to create files and share the project with you. For information on how your data is used, see the PRIVACY POLICY."),
+               # A Privacy Policy Draft has been written (below) 
+               # If this part of the project is not going to be made public, it probably isn't needed
+               tags$p("Hello! Before we begin, we need access to your Google account. This is necessary to create files and share the project with you. For information on how your data is used, see How Your Data Is Used."),
                actionButton("auth", "Authenticate With Google"),
                br(), br(),
                
@@ -43,6 +44,8 @@ ui <- fluidPage(
                ## Waterbody question ####
                conditionalPanel(
                  condition = "input.ready",
+                 p("Now, enter the name of the waterbody you collected/will collect data from. Be sure to spell this correctly (and with correct casing) as this will be used for the Google folder name and will be inserted into all of the dashboard plots. It is possible to edit mistakes later, but it will be time consuming."),
+                 br(),
                  textInput("wb", "What waterbody are you collecting data from?"),
                  actionButton("wb_entered", "Next"),
                  br(), br(),

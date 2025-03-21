@@ -8,3 +8,6 @@ test*.R
 *.RData
 my_ingest.R
 /Users/iancurtis/Documents/coding/stream-monitoring/.secrets
+test/
+alt-auth/
+.sass_cache_keys
