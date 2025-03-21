@@ -26,7 +26,7 @@ server <- function(input, output, session) {
     
     HTML(paste0("Hey ",
                 "<span style=\"color: #099392\"><b>", rv$user, "</b></span>",
-                "! Welcome to the app. Now that you're logged in, we can move forward. You first will be asked a couple questions about your project which will help us determine how many files to create. Once these questions are complete, the majority of the process will happen automatically. However, there are a few manual steps. We'll pause a couple times and ask you to perform an action or two."))
+                "! Welcome to the app. Now that you're logged in, we can move forward. You first will be asked a couple questions about your project. Once these questions are complete, the majority of the process will happen automagically. However, there are a few manual steps. We'll pause a couple times and ask you to perform an action or two."))
   })
   
   output$auth_complete <- renderText({rv$auth_complete})
@@ -48,7 +48,7 @@ server <- function(input, output, session) {
     )
     HTML(paste0("Alright! Looks like you are recording data from ", 
                 "<span style=\"color: #099392\"><b>", rv$wb, "</b></span>",
-                "! If this is not correct, please type a new name and try again."))
+                "! If this is not correct, please type a new name and submit again (this message will update with the new name)."))
   })
   
   output$wb_ready <- renderText({rv$wb_ready})
@@ -69,11 +69,11 @@ server <- function(input, output, session) {
     on.exit(waiter$hide())
     
     proj_dir <- drive_mkdir(
-      name = paste0("Stream Monitoring - ", input$wb)
+      name = input$wb
     )
     
-    checklist_copy <- drive_cp(proj_checklist, name = "00 Project Checklist and Notes") %>% 
-      drive_mv(path = proj_dir)
+    # checklist_copy <- drive_cp(proj_checklist, name = "00 Project Checklist and Notes") %>% 
+    #   drive_mv(path = proj_dir)
     
     form_copy <- drive_cp(form_template, name = "01 Data Entry Form") %>% 
       drive_mv(path = proj_dir)
@@ -111,8 +111,8 @@ server <- function(input, output, session) {
     
     files_in_dir <- drive_ls(rv$proj_dir) %>% nrow()
     
-    if (files_in_dir == 2) rv$redo_form <- "yes" else rv$redo_form <- "no"
-    
+    if (files_in_dir == 1) rv$redo_form <- "yes" else rv$redo_form <- "no"
+    # change this back to files_in_dir == 2 when a project checklist/instructor information file is added back in
   })
   
   output$redo_form <- renderText({rv$redo_form})
@@ -136,7 +136,7 @@ server <- function(input, output, session) {
     
     # rv$form_r_link <- form_r_link
     sheet_rename(form_r_link, new_name = "Data")
-    drive_rename(form_r_link, name = "02 Raw Data (only edit if necessary)")
+    drive_rename(form_r_link, name = "02 Raw Data (only edit entry errors)")
     
     waiter$hide()
     
@@ -162,8 +162,8 @@ server <- function(input, output, session) {
     
     
     import_ecoli <- paste0("=QUERY(IMPORTRANGE(\"", form_r_link,
-                           "\", \"'Data'!K2:O\"), ",
-                           "\"select * where Col1 is not null order by Col2\", 0)")
+                           "\", \"'Data'!L2:P\"), ",
+                           "\"select * where Col1 is not null order by Col1, Col2\", 0)")
     
     range_write(main_copy,
                 data.frame(x = gs4_formula(import_ecoli)),
@@ -172,8 +172,8 @@ server <- function(input, output, session) {
                 col_names = FALSE)
     
     import_macro <- paste0("=QUERY(IMPORTRANGE(\"", form_r_link,
-                           "\", \"'Data'!P2:T\"), ",
-                           "\"select * where Col3 is not null order by Col1, Col2, Col3\", 0)")
+                           "\", \"'Data'!Q2:U\"), ",
+                           "\"select * where Col3 is not null order by Col2, Col3\", 0)")
     
     range_write(main_copy,
                 data.frame(x = gs4_formula(import_macro)),
@@ -182,7 +182,7 @@ server <- function(input, output, session) {
                 col_names = FALSE)
     
     import_chem <- paste0("=QUERY(IMPORTRANGE(\"", form_r_link,
-                          "\", \"'Data'!C2:J\"), ",
+                          "\", \"'Data'!C2:K\"), ",
                           "\"select * where Col1 is not null order by Col1, Col2\", 0)")
     
     range_write(main_copy,
@@ -197,7 +197,6 @@ server <- function(input, output, session) {
       select(id)
     
     hide_sheet(main_copy$id, sheet_ids[[1]][[1]], "hide")
-    hide_sheet(main_copy$id, sheet_ids[[1]][[2]], "hide")
     
     rv$connect_primary <- "ready"
     
@@ -243,6 +242,8 @@ server <- function(input, output, session) {
       site_link <- drive_link(site_copy)
       site_sheets[[site]] <- site_link
       
+      # Raw Data Sheet
+      
       # site e. coli data
       ecoli_str <- paste0("=QUERY(IMPORTRANGE(\"", rv$main_link, 
                           "\", \"'", "All E. Coli Data", "'!A:F\"), 
@@ -253,44 +254,41 @@ server <- function(input, output, session) {
                   range = "A1",
                   col_names = FALSE)
       
-      # site macro data
-      macro_str <- paste0("=QUERY(IMPORTRANGE(\"", rv$main_link, 
-                          "\", \"'", "All Macro Data", "'!A:E\"), 
-                       \"select * where Col3 = 'Site ", site, "' order by Col2\", 1)")
-      range_write(site_copy,
-                  data.frame(x = gs4_formula(macro_str)),
-                  sheet = "Raw Data",
-                  range = "K1",
-                  col_names = FALSE)
       
       # site stream chem data
       chem_str <- paste0("=QUERY(IMPORTRANGE(\"", rv$main_link, 
-                         "\", \"'", "All Stream Chem Data", "'!A:H\"), 
+                         "\", \"'", "All Stream Chem Data", "'!A:I\"), 
                        \"select * where Col2 = 'Site ", site, "' order by Col1\", 1)")
       range_write(site_copy,
                   data.frame(x = gs4_formula(chem_str)),
                   sheet = "Raw Data",
-                  range = "T1",
+                  range = "L1",
                   col_names = FALSE)
       
-      # site sub data
+      
+      # Macro Data Sheet
+  
+      # site macro data
+      macro_str <- paste0("=QUERY(IMPORTRANGE(\"", rv$main_link,
+                          "\", \"'", "All Macro Data", "'!A:E\"),
+                       \"select * where Col3 = 'Site ", site, "' order by Col2, Col1 DESC\", 1)")
       range_write(site_copy,
-                  data.frame(x = gs4_formula(paste0("=IMPORTRANGE(\"", rv$main_link, "\", \"'Sub Data'!A:I\")"))),
-                  sheet = "Raw Data",
-                  range = "AC1",
+                  data.frame(x = gs4_formula(macro_str)),
+                  sheet = "Macro Data",
+                  range = "B1",
                   col_names = FALSE)
       
-      # Change these numbers later
-      # for (chart_num in seq(1, 8)) {
-      #   
-      #   update_title(site_copy$id, chart_num, site, rv$wb)
-      #   
-      # }
       
-      # for (chart_num in c(1, 2, 5, 6, 7, 8)) {
-      #   
-      #   update_title(site_copy$id, chart_num, site, rv$wb)
-      #   
+      
+      
+      # This will eventually edit the title to a chart
+      # Currently erases all of my chart customization so don't use it now :(
+
+      # for (chart_num in seq(1, 10)) {
+      # 
+      #   update_title(site_copy$id, chart_num, site)
+      #   update_subtitle(site_copy$id, chart_num, rv$wb)
+      # 
       # }
       
       
@@ -310,7 +308,7 @@ server <- function(input, output, session) {
     
     site_links <- ""
     
-    for (i in seq(rv$n_sites)) {
+    for (i in seq(6)) {
       
       link <- site_sheets[[i]]
       site_links <- paste0(site_links, a(href = link, paste("Link to Site", i, "Sheet (opens in new window)"), target = "_blank"), "<br>")
@@ -326,8 +324,8 @@ server <- function(input, output, session) {
       "You'll again need to give Google permission to import data from another spreadsheet. In this case, we are looking to import data from the primary datasheet (that you created earlier) into the site-specific datasheet(s) (which house all of the data for a specific site and generate plots).",
       "You will need to do this for each of the site files that were created. Head to each of the links below and click on the cell that says \"#REF!\".",
       "A dialog box should appear. Use the \"Allow Access\" button to give Google permission to read from the other file.",
-      "You should see the \"#REF!\" change to a \"#N/A\". This is expected and indicates that it worked.",
-      "The file(s) to approve connections for:",
+      "You should see the \"#REF!\" go away and column header text will fill the cells. This is expected and indicates that it worked.",
+      "The files to approve connections for:",
       make_site_links(rv$site_sheets),
       "Have you approved the connection? If so, press the \"Continue\" button.",
       sep = "<br><br>"
@@ -348,7 +346,7 @@ server <- function(input, output, session) {
       ssid <- as_dribble(url)
       
       sheet_ids <- sheet_properties(ssid) %>%
-        filter(index <= 1) %>%
+        # filter(index <= 1) %>%
         select(id)
       
       hide_sheet(ssid$id, sheet_ids[[1]][[1]], "hide")
