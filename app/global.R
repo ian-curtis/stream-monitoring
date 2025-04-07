@@ -24,6 +24,12 @@ drive_auth_configure(path = "./.secrets/client.json")
 form_template <- "https://docs.google.com/forms/d/1Pd09xnHNOX6Q9JXFQ-L8hUClaeBaTAGU8xkYgTylqwY/edit"
 main_template <- "https://docs.google.com/spreadsheets/d/1rlhVZuQGNeazfnfzOLMBozkUBcti78dJmnqxuGXDy4k"
 site_template <- "https://docs.google.com/spreadsheets/d/1W5xNg5NlKTC43BantaZmQk-apgA1F9hmXq0zVElK2mg/edit"
+# UNCOMMENT THE FOLLOWING THREE LINES WHEN THE INSTRUCTOR GUIDELINES FILE AND STUDENT 
+# WORKSHEETS ARE DONE
+# COPIES SHOULD BE UPLOADED TO THE TEMPLATE FOLDER IN GOOGLE DRIVE
+# guidelines_template <- ""
+# student_wksht_pre <- ""
+# student_wksht_post <- ""
 no_no <- readRDS("data/illegal_words.rds")
 
 

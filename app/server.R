@@ -72,13 +72,20 @@ server <- function(input, output, session) {
       name = input$wb
     )
     
-    # checklist_copy <- drive_cp(proj_checklist, name = "00 Project Checklist and Notes") %>% 
-    #   drive_mv(path = proj_dir)
-    
     form_copy <- drive_cp(form_template, name = "01 Data Entry Form") %>% 
       drive_mv(path = proj_dir)
     form_link <- drive_link(form_copy)
     form_resp_link <- paste0(drive_link(form_copy), "#responses")
+    
+    # Instructor Guidelines and STUDENT WORKSHEETS
+    # UNCOMMENT WHEN THIS FILE IS DONE
+    
+    # inst_guide_copy <- drive_cp(guidelines_template, name = "07 Instructor Guidelines") %>% 
+    #   drive_mv(path = proj_dir)
+    # student_pre_copy <- drive_cp(student_wksht_pre, name = "08 Student Pre Worksheet") %>% 
+    #   drive_mv(path = proj_dir)
+    # student_post_copy <- drive_cp(student_wksht_post, name = "08 Student Post Worksheet") %>% 
+    #   drive_mv(path = proj_dir)
     
     rv$wb <- input$wb
     rv$proj_dir <- proj_dir
@@ -112,7 +119,7 @@ server <- function(input, output, session) {
     files_in_dir <- drive_ls(rv$proj_dir) %>% nrow()
     
     if (files_in_dir == 1) rv$redo_form <- "yes" else rv$redo_form <- "no"
-    # change this back to files_in_dir == 2 when a project checklist/instructor information file is added back in
+    # change this to files_in_dir == 5 when instructor guidelines and student worksheets are done
   })
   
   output$redo_form <- renderText({rv$redo_form})
@@ -332,7 +339,7 @@ server <- function(input, output, session) {
     ))
   })
   
-  # ADD IN VERIFICATION THAT THE SHEETS WERE LINKED PROPERLY
+  # ADD IN VERIFICATION THAT THE SHEETS WERE LINKED PROPERLY??
   
   observeEvent(input$site_linked, {
     
